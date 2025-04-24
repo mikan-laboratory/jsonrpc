@@ -21,6 +21,7 @@
 
 import gleam/dynamic/decode.{type Decoder}
 import gleam/json.{type Json}
+import gleam/list
 import gleam/option.{type Option, None, Some}
 
 /// Specifies the version of the JSON-RPC protocol. Only 2.0 is supported.
@@ -342,6 +343,26 @@ pub fn error_decoder(data_decoder: Decoder(data)) -> Decoder(ErrorBody(data)) {
   decode.success(ErrorBody(code:, message:, data:))
 }
 
+pub fn error_response_from(
+  id: Id,
+  json_error: json.DecodeError,
+) -> ErrorResponse(Nothing) {
+  case json_error {
+    json.UnableToDecode(errors) -> from_decode_errors(id, errors)
+    _ -> error_response(id, parse_error)
+  }
+}
+
+fn from_decode_errors(id: Id, errors: List(decode.DecodeError)) {
+  let params_error =
+    list.all(errors, fn(error) { list.first(error.path) == Ok("params") })
+
+  case params_error {
+    True -> error_response(id, invalid_params)
+    False -> error_response(id, invalid_request)
+  }
+}
+
 // ERRORS ----------------------------------------------------------------------
 
 /// Invalid JSON was received by the server. An error occurred on the server
@@ -394,4 +415,21 @@ pub fn server_error(code: Int) -> Result(JsonRpcError, Nil) {
     True -> Ok(JsonRpcError(code, "Server error"))
     False -> Error(Nil)
   }
+}
+
+/// Get the appropriate `JsonRpcError` based on a request's `json.DecodeError`.
+pub fn decode_error(error: json.DecodeError) -> JsonRpcError {
+  case error {
+    json.UnableToDecode(errors) -> {
+      case list.all(errors, param_error) {
+        True -> invalid_params
+        False -> invalid_request
+      }
+    }
+    _ -> parse_error
+  }
+}
+
+fn param_error(error: decode.DecodeError) {
+  list.first(error.path) == Ok("params")
 }
