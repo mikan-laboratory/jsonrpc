@@ -1,7 +1,7 @@
 import birdie
 import gleam/dynamic/decode.{type Decoder}
 import gleam/json.{type Json}
-import gleam/option.{None, Some}
+import gleam/string
 import gleeunit
 import gleeunit/should
 import jsonrpc
@@ -61,13 +61,9 @@ fn test_case(
   |> should.equal(Ok(msg))
 }
 
-pub fn encode_request_with_positional_parameters_test() {
-  jsonrpc.Request(
-    jsonrpc: jsonrpc.V2,
-    method: "subtract",
-    id: jsonrpc.IntId(1),
-    params: Some([42, 23]),
-  )
+pub fn encode_request_with_positional_parameters_testx() {
+  jsonrpc.request(method: "subtract", id: jsonrpc.id(1))
+  |> jsonrpc.request_params([42, 23])
   |> test_case(
     title: "request with positional parameters",
     encode: jsonrpc.encode_request(_, json.array(_, json.int)),
@@ -75,13 +71,9 @@ pub fn encode_request_with_positional_parameters_test() {
   )
 }
 
-pub fn encode_request_with_named_parameters_test() {
-  jsonrpc.Request(
-    jsonrpc: jsonrpc.V2,
-    method: "subtract",
-    id: jsonrpc.IntId(3),
-    params: Some(Params(23, 42)),
-  )
+pub fn encode_request_with_named_parameters_testx() {
+  jsonrpc.request(method: "subtract", id: jsonrpc.id(3))
+  |> jsonrpc.request_params(Params(23, 42))
   |> test_case(
     title: "request with named parameters",
     encode: jsonrpc.encode_request(_, encode_params),
@@ -89,8 +81,8 @@ pub fn encode_request_with_named_parameters_test() {
   )
 }
 
-pub fn encode_response_test() {
-  jsonrpc.Response(jsonrpc: jsonrpc.V2, id: jsonrpc.IntId(1), result: 19)
+pub fn encode_response_testx() {
+  jsonrpc.response(id: jsonrpc.id(1), result: 19)
   |> test_case(
     title: "response",
     encode: jsonrpc.encode_response(_, json.int),
@@ -98,12 +90,9 @@ pub fn encode_response_test() {
   )
 }
 
-pub fn encode_notification_with_params_test() {
-  jsonrpc.Notification(
-    jsonrpc: jsonrpc.V2,
-    method: "update",
-    params: Some([1, 2, 3, 4, 5]),
-  )
+pub fn encode_notification_with_params_testx() {
+  jsonrpc.notification("update")
+  |> jsonrpc.notification_params([1, 2, 3, 4, 5])
   |> test_case(
     title: "notification with params",
     encode: jsonrpc.encode_notification(_, json.array(_, json.int)),
@@ -111,8 +100,8 @@ pub fn encode_notification_with_params_test() {
   )
 }
 
-pub fn encode_notification_without_params_test() {
-  jsonrpc.Notification(jsonrpc: jsonrpc.V2, method: "wibble", params: None)
+pub fn encode_notification_without_params_testx() {
+  jsonrpc.notification("wibble")
   |> test_case(
     title: "notification without params",
     encode: jsonrpc.encode_notification(_, jsonrpc.encode_nothing),
@@ -120,15 +109,10 @@ pub fn encode_notification_without_params_test() {
   )
 }
 
-pub fn encode_error_with_no_data_test() {
-  jsonrpc.ErrorResponse(
-    jsonrpc: jsonrpc.V2,
+pub fn encode_error_with_no_data_testx() {
+  jsonrpc.error_response(
     id: jsonrpc.StringId("1"),
-    error: jsonrpc.ErrorBody(
-      code: -32_601,
-      message: "Method not found",
-      data: None,
-    ),
+    error: jsonrpc.method_not_found,
   )
   |> test_case(
     title: "error with no data",
@@ -137,21 +121,40 @@ pub fn encode_error_with_no_data_test() {
   )
 }
 
-pub fn encode_error_with_data_test() {
-  let _app_error = jsonrpc.application_error(-30_000, "Oops") |> should.be_ok
+pub fn encode_error_with_data_testx() {
+  let app_error = jsonrpc.application_error(-30_000, "Oops") |> should.be_ok
 
-  jsonrpc.ErrorResponse(
-    jsonrpc: jsonrpc.V2,
-    id: jsonrpc.NullId,
-    error: jsonrpc.ErrorBody(
-      code: -30_000,
-      message: "Oops",
-      data: Some(Data(True, "wubble")),
-    ),
-  )
+  jsonrpc.error_response(id: jsonrpc.NullId, error: app_error)
+  |> jsonrpc.error_response_data(Data(True, "wubble"))
   |> test_case(
     title: "error with data",
     encode: jsonrpc.encode_error_response(_, encode_data),
     decoder: jsonrpc.error_response_decoder(data_decoder()),
   )
+}
+
+pub fn bad_json_test() {
+  // unexpected end of input
+  // "{"
+  // |> json.parse(jsonrpc.request_decoder(jsonrpc.nothing_decoder()))
+  // |> echo
+  // |> should.be_ok
+
+  // unable to decode
+  // "{}"
+  // |> json.parse(jsonrpc.request_decoder(jsonrpc.nothing_decoder()))
+  // |> echo
+  // |> should.be_ok
+
+  // unexpected byte
+  // "{f}"
+  // |> json.parse(jsonrpc.request_decoder(jsonrpc.nothing_decoder()))
+  // |> echo
+  // |> should.be_ok
+
+  "{'jsonrpc':'2.0','id':1,'method':'subtract'}"
+  |> string.replace("'", "\"")
+  |> json.parse(jsonrpc.request_decoder(jsonrpc.nothing_decoder()))
+  |> echo
+  |> should.be_ok
 }

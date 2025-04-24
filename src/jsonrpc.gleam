@@ -3,6 +3,21 @@
 //// around their processing. It is transport agnostic in that the concepts can be
 //// used within the same process, over sockets, over http, or in many various
 //// message passing environments. It uses JSON (RFC 4627) as data format.
+////
+//// The error codes from and including -32768 to -32000 are reserved for
+//// pre-defined errors. Any code within this range, but not defined explicitly below
+//// is reserved for future use.
+////
+//// | code | message | meaning |
+//// | --- | --- | --- |
+//// | -32700 | Parse error | Invalid JSON was received by the server. An error occurred on the server while parsing the JSON text. |
+//// | -32600 | Invalid Request | The JSON sent is not a valid Request object. |
+//// | -32601 | Method not found | The method does not exist / is not available. |
+//// | -32602 | Invalid params | Invalid method parameter(s). |
+//// | -32603 | Internal error | Internal JSON-RPC error. |
+//// | -32000 to -32099 | Server error | Reserved for implementation-defined server-errors. |
+////
+//// The remainder of the space is available for application defined errors.
 
 import gleam/dynamic/decode.{type Decoder}
 import gleam/json.{type Json}
@@ -31,6 +46,10 @@ pub type Id {
   StringId(String)
   IntId(Int)
   NullId
+}
+
+pub fn id(id: Int) -> Id {
+  IntId(id)
 }
 
 pub fn encode_id(id: Id) -> Json {
@@ -67,6 +86,14 @@ pub type Request(params) {
     /// invocation of the method. This member MAY be omitted.
     params: Option(params),
   )
+}
+
+pub fn request(method method: String, id id: Id) -> Request(params) {
+  Request(jsonrpc: V2, method:, id:, params: None)
+}
+
+pub fn request_params(request: Request(a), params: params) -> Request(params) {
+  Request(..request, params: Some(params))
 }
 
 pub fn encode_request(
@@ -137,6 +164,17 @@ pub type Notification(params) {
   )
 }
 
+pub fn notification(method: String) -> Notification(params) {
+  Notification(jsonrpc: V2, method:, params: None)
+}
+
+pub fn notification_params(
+  notification: Notification(a),
+  params: params,
+) -> Notification(params) {
+  Notification(..notification, params: Some(params))
+}
+
 pub fn encode_notification(
   notification: Notification(params),
   encode_params: fn(params) -> Json,
@@ -181,6 +219,10 @@ pub type Response(result) {
   )
 }
 
+pub fn response(id id: Id, result result: result) -> Response(result) {
+  Response(jsonrpc: V2, id:, result:)
+}
+
 pub fn encode_response(
   response: Response(result),
   encode_result: fn(result) -> Json,
@@ -217,6 +259,25 @@ pub type ErrorResponse(data) {
     /// members:
     error: ErrorBody(data),
   )
+}
+
+pub fn error_response(
+  id id: Id,
+  error error: JsonRpcError,
+) -> ErrorResponse(data) {
+  ErrorResponse(
+    jsonrpc: V2,
+    id:,
+    error: ErrorBody(code: error.code, message: error.message, data: None),
+  )
+}
+
+pub fn error_response_data(
+  error_response: ErrorResponse(a),
+  data: data,
+) -> ErrorResponse(data) {
+  let error = ErrorBody(..error_response.error, data: Some(data))
+  ErrorResponse(..error_response, error:)
 }
 
 pub fn encode_error_response(
@@ -283,7 +344,7 @@ pub fn error_decoder(data_decoder: Decoder(data)) -> Decoder(ErrorBody(data)) {
 
 // ERRORS ----------------------------------------------------------------------
 
-/// Invalid JSON was received by the server.An error occurred on the server
+/// Invalid JSON was received by the server. An error occurred on the server
 /// while parsing the JSON text.
 pub const parse_error = JsonRpcError(-32_700, "Parse error")
 
@@ -311,6 +372,10 @@ pub fn error_message(error: JsonRpcError) {
   error.message
 }
 
+/// An error defined for your specific application.
+/// The error code MUST not be within the range -32768 to -32000, otherwise
+/// `Error(Nil)` will be returned.
+/// The message SHOULD be limited to a concise single sentence.
 pub fn application_error(
   code: Int,
   message: String,
@@ -321,6 +386,9 @@ pub fn application_error(
   }
 }
 
+/// An error reserved for implementation-defined server-errors.
+/// The error code MUST be within the range -32099 to -32000, otherwise
+/// `Error(Nil)` will be returned.
 pub fn server_error(code: Int) -> Result(JsonRpcError, Nil) {
   case code >= -32_099 && code <= -32_000 {
     True -> Ok(JsonRpcError(code, "Server error"))
