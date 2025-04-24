@@ -1,0 +1,7 @@
+---
+version: 1.2.6
+title: request with named parameters
+file: ./test/jsonrpc_test.gleam
+test_name: request_with_named_parameters_test
+---
+{"jsonrpc":"2.0","method":"subtract","id":3,"params":{"subtrahend":23,"minuend":42}}

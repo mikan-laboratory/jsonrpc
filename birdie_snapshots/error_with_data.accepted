@@ -1,0 +1,7 @@
+---
+version: 1.2.6
+title: error with data
+file: ./test/jsonrpc_test.gleam
+test_name: error_with_data_test
+---
+{"jsonrpc":"2.0","id":null,"error":{"code":-30000,"message":"Oops","data":{"wibble":true,"wobble":"wubble"}}}

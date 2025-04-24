@@ -100,6 +100,20 @@ pub fn request_decoder(
   decode.success(Request(jsonrpc:, method:, id:, params:))
 }
 
+/// A type that can help with type inference for RPC objects that omit optional
+/// fields.
+pub opaque type Nothing {
+  Nothing
+}
+
+pub fn encode_nothing(_nothing: Nothing) -> Json {
+  json.null()
+}
+
+pub fn nothing_decoder() -> Decoder(Nothing) {
+  decode.failure(Nothing, "Attempted to decode a Nothing type.")
+}
+
 /// A notification signifies the Client's lack of interest in the corresponding
 /// Response object, and as such no Response object needs to be returned to the
 /// client. The Server MUST NOT reply to a Notification, including those that
@@ -201,7 +215,7 @@ pub type ErrorResponse(data) {
     /// When a rpc call encounters an error, the Response Object MUST contain
     /// the error member with a value that is a Object with the following
     /// members:
-    error: Error(data),
+    error: ErrorBody(data),
   )
 }
 
@@ -228,8 +242,8 @@ pub fn error_response_decoder(
 
 /// When an RPC call encounters an error, the Response Object MUST contain the
 /// error member
-pub type Error(data) {
-  Error(
+pub type ErrorBody(data) {
+  ErrorBody(
     /// A Number that indicates the error type that occurred.
     code: Int,
     /// A String providing a short description of the error.
@@ -244,8 +258,11 @@ pub type Error(data) {
   )
 }
 
-pub fn encode_error(error: Error(data), encode_data: fn(data) -> Json) -> Json {
-  let Error(code:, message:, data:) = error
+pub fn encode_error(
+  error: ErrorBody(data),
+  encode_data: fn(data) -> Json,
+) -> Json {
+  let ErrorBody(code:, message:, data:) = error
   let data = case data {
     Some(data) -> [#("data", encode_data(data))]
     None -> []
@@ -257,9 +274,56 @@ pub fn encode_error(error: Error(data), encode_data: fn(data) -> Json) -> Json {
   ])
 }
 
-pub fn error_decoder(data_decoder: Decoder(data)) -> Decoder(Error(data)) {
+pub fn error_decoder(data_decoder: Decoder(data)) -> Decoder(ErrorBody(data)) {
   use code <- decode.field("code", decode.int)
   use message <- decode.field("message", decode.string)
   use data <- decode.optional_field("data", None, decode.optional(data_decoder))
-  decode.success(Error(code:, message:, data:))
+  decode.success(ErrorBody(code:, message:, data:))
+}
+
+// ERRORS ----------------------------------------------------------------------
+
+/// Invalid JSON was received by the server.An error occurred on the server
+/// while parsing the JSON text.
+pub const parse_error = JsonRpcError(-32_700, "Parse error")
+
+/// The JSON sent is not a valid Request object.
+pub const invalid_request = JsonRpcError(-32_600, "Invalid Request")
+
+/// The method does not exist / is not available.
+pub const method_not_found = JsonRpcError(-32_601, "Method not found")
+
+/// Invalid method parameter(s).
+pub const invalid_params = JsonRpcError(-32_602, "Invalid params")
+
+/// Internal JSON-RPC error.
+pub const internal_error = JsonRpcError(-32_603, "Internal error")
+
+pub opaque type JsonRpcError {
+  JsonRpcError(code: Int, message: String)
+}
+
+pub fn error_code(error: JsonRpcError) {
+  error.code
+}
+
+pub fn error_message(error: JsonRpcError) {
+  error.message
+}
+
+pub fn application_error(
+  code: Int,
+  message: String,
+) -> Result(JsonRpcError, Nil) {
+  case code >= -32_768 && code <= -32_000 {
+    True -> Error(Nil)
+    False -> Ok(JsonRpcError(code, message))
+  }
+}
+
+pub fn server_error(code: Int) -> Result(JsonRpcError, Nil) {
+  case code >= -32_099 && code <= -32_000 {
+    True -> Ok(JsonRpcError(code, "Server error"))
+    False -> Error(Nil)
+  }
 }

@@ -1,0 +1,7 @@
+---
+version: 1.2.6
+title: response
+file: ./test/jsonrpc_test.gleam
+test_name: response_test
+---
+{"jsonrpc":"2.0","id":1,"result":19}

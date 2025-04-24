@@ -1,0 +1,7 @@
+---
+version: 1.2.6
+title: request with positional parameters
+file: ./test/jsonrpc_test.gleam
+test_name: request_with_positional_parameters_test
+---
+{"jsonrpc":"2.0","method":"subtract","id":1,"params":[42,23]}
