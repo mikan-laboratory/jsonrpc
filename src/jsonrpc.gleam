@@ -19,10 +19,29 @@
 ////
 //// The remainder of the space is available for application defined errors.
 
-import gleam/dynamic/decode.{type Decoder}
+import gleam/dynamic/decode.{type Decoder, type Dynamic}
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option, None, Some}
+
+/// A union of the JSON-RPC message types.
+pub type Message {
+  RequestMessage(Request(Dynamic))
+  NotificationMessage(Notification(Dynamic))
+  ResponseMessage(Response(Dynamic))
+  ErrorResponseMessage(ErrorResponse(Dynamic))
+}
+
+pub fn message_decoder() -> Decoder(Message) {
+  let request = request_decoder(decode.dynamic) |> decode.map(RequestMessage)
+  let notification =
+    notification_decoder(decode.dynamic) |> decode.map(NotificationMessage)
+  let response = response_decoder(decode.dynamic) |> decode.map(ResponseMessage)
+  let error_response =
+    error_response_decoder(decode.dynamic) |> decode.map(ErrorResponseMessage)
+
+  decode.one_of(request, [notification, response, error_response])
+}
 
 /// Specifies the version of the JSON-RPC protocol. Only 2.0 is supported.
 pub type Version {
