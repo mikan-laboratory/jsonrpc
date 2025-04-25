@@ -27,11 +27,15 @@ pub fn send_subtract(base_request: Request(a)) {
   |> jsonrpc.encode_request(json.array(_, json.int))
   |> json.to_string
 
-  let req = request.set_body(base_request, body)
+  let req =
+    rpc_req
+    |> jsonrpc.encode_request(json.array(_, json.int))
+    |> json.to_string
+    |> request.set_body(base_request, _)
 
-  use resp <- result.try(httpc.send(req))
+  let assert Ok(resp) = httpc.send(req)
   let decoder = jsonrpc.response_decoder(decode.int)
-  use rpc_resp <- result.try(json.parse(resp.body, decoder))
+  let assert Ok(rpc_resp) = json.parse(resp.body, decoder)
 
   rpc_resp.id |> should.equal(rpc_req.id)
   rpc_resp.result |> should.equal(19)
