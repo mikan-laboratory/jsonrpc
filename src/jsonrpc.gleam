@@ -437,15 +437,18 @@ pub fn server_error(code: Int) -> Result(JsonRpcError, Nil) {
 }
 
 /// Get the appropriate `JsonRpcError` based on a request's `json.DecodeError`.
-pub fn decode_error(error: json.DecodeError) -> JsonRpcError {
+pub fn json_error(error: json.DecodeError) -> JsonRpcError {
   case error {
-    json.UnableToDecode(errors) -> {
-      case list.all(errors, param_error) {
-        True -> invalid_params
-        False -> invalid_request
-      }
-    }
+    json.UnableToDecode(errors) -> decode_errors(errors)
     _ -> parse_error
+  }
+}
+
+/// Get the appropriate `JsonRpcError` based on a request's `decode.DecodeError`s.
+pub fn decode_errors(errors: List(decode.DecodeError)) -> JsonRpcError {
+  case list.all(errors, param_error) {
+    True -> invalid_params
+    False -> invalid_request
   }
 }
 

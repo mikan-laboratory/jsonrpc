@@ -133,23 +133,23 @@ pub fn encode_error_with_data_test() {
   )
 }
 
-pub fn decode_error_test() {
+pub fn json_error_test() {
   "{"
   |> json.parse(jsonrpc.request_decoder(jsonrpc.nothing_decoder()))
   |> should.be_error
-  |> jsonrpc.decode_error
+  |> jsonrpc.json_error
   |> should.equal(jsonrpc.parse_error)
 
   "{}"
   |> json.parse(jsonrpc.request_decoder(jsonrpc.nothing_decoder()))
   |> should.be_error
-  |> jsonrpc.decode_error
+  |> jsonrpc.json_error
   |> should.equal(jsonrpc.invalid_request)
 
   "{'jsonrpc':'2.0','id':1,'method':'subtract','params':['a', 'b']}"
   |> string.replace("'", "\"")
   |> json.parse(jsonrpc.request_decoder(decode.list(decode.int)))
   |> should.be_error
-  |> jsonrpc.decode_error
+  |> jsonrpc.json_error
   |> should.equal(jsonrpc.invalid_params)
 }
