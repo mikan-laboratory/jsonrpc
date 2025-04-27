@@ -239,7 +239,7 @@ pub type Response(result) {
   )
 }
 
-pub fn response(id id: Id, result result: result) -> Response(result) {
+pub fn response(result result: result, id id: Id) -> Response(result) {
   Response(jsonrpc: V2, id:, result:)
 }
 
@@ -282,8 +282,8 @@ pub type ErrorResponse(data) {
 }
 
 pub fn error_response(
-  id id: Id,
   error error: JsonRpcError,
+  id id: Id,
 ) -> ErrorResponse(data) {
   ErrorResponse(
     jsonrpc: V2,
@@ -363,22 +363,22 @@ pub fn error_decoder(data_decoder: Decoder(data)) -> Decoder(ErrorBody(data)) {
 }
 
 pub fn error_response_from(
-  id: Id,
   json_error: json.DecodeError,
+  id: Id,
 ) -> ErrorResponse(Nothing) {
   case json_error {
-    json.UnableToDecode(errors) -> from_decode_errors(id, errors)
-    _ -> error_response(id, parse_error)
+    json.UnableToDecode(errors) -> from_decode_errors(errors, id)
+    _ -> error_response(parse_error, id)
   }
 }
 
-fn from_decode_errors(id: Id, errors: List(decode.DecodeError)) {
+fn from_decode_errors(errors: List(decode.DecodeError), id: Id) {
   let params_error =
     list.all(errors, fn(error) { list.first(error.path) == Ok("params") })
 
   case params_error {
-    True -> error_response(id, invalid_params)
-    False -> error_response(id, invalid_request)
+    True -> error_response(invalid_params, id)
+    False -> error_response(invalid_request, id)
   }
 }
 
