@@ -31,8 +31,8 @@ pub type Message {
   NotificationMessage(Notification(Dynamic))
   ResponseMessage(Response(Dynamic))
   ErrorResponseMessage(ErrorResponse(Dynamic))
-  BatchRequestMessage(List(BatchRequestItem))
-  BatchResponseMessage(List(BatchResponseItem))
+  BatchRequestMessage(BatchRequest(Dynamic))
+  BatchResponseMessage(BatchResponse(Dynamic))
 }
 
 pub fn message_decoder() -> Decoder(Message) {
@@ -42,11 +42,9 @@ pub fn message_decoder() -> Decoder(Message) {
   let response = response_decoder(decode.dynamic) |> decode.map(ResponseMessage)
   let error_response =
     error_response_decoder(decode.dynamic) |> decode.map(ErrorResponseMessage)
-  let batch_request =
-    decode.list(batch_request_item_decoder()) |> decode.map(BatchRequestMessage)
+  let batch_request = batch_request_decoder() |> decode.map(BatchRequestMessage)
   let batch_response =
-    decode.list(batch_response_item_decoder())
-    |> decode.map(BatchResponseMessage)
+    batch_response_decoder() |> decode.map(BatchResponseMessage)
 
   decode.one_of(request, [
     notification,
@@ -57,42 +55,63 @@ pub fn message_decoder() -> Decoder(Message) {
   ])
 }
 
-pub opaque type BatchRequest {
-  BatchRequest(List(Json))
+pub opaque type BatchRequest(a) {
+  BatchRequest(List(BatchRequestItem(a)))
 }
 
-pub fn batch_request_to_json(batch_request: BatchRequest) -> Json {
+pub fn batch_request_items(batch_request: BatchRequest(a)) {
   let BatchRequest(batch) = batch_request
-  json.array(batch, function.identity)
+  batch
+}
+
+pub fn batch_request() -> BatchRequest(Json) {
+  BatchRequest([])
+}
+
+pub fn batch_request_to_json(batch_request: BatchRequest(Json)) -> Json {
+  let BatchRequest(batch) = batch_request
+  json.array(batch, batch_request_item_to_json)
+}
+
+pub fn batch_request_decoder() -> Decoder(BatchRequest(Dynamic)) {
+  decode.list(batch_request_item_decoder()) |> decode.map(BatchRequest)
 }
 
 pub fn add_request(
-  batch_request: BatchRequest,
+  batch_request: BatchRequest(Json),
   request: Request(a),
   params_to_json: fn(a) -> Json,
-) -> BatchRequest {
+) -> BatchRequest(Json) {
   let BatchRequest(batch) = batch_request
-  let req = request_to_json(request, params_to_json)
-  BatchRequest([req, ..batch])
+  let request =
+    Request(..request, params: option.map(request.params, params_to_json))
+    |> BatchRequestItemRequest
+  BatchRequest([request, ..batch])
 }
 
 pub fn add_notification(
-  batch_request: BatchRequest,
+  batch_request: BatchRequest(Json),
   notification: Notification(a),
   params_to_json: fn(a) -> Json,
-) -> BatchRequest {
+) -> BatchRequest(Json) {
   let BatchRequest(batch) = batch_request
-  let req = notification_to_json(notification, params_to_json)
-  BatchRequest([req, ..batch])
+  let notification =
+    Notification(
+      ..notification,
+      params: option.map(notification.params, params_to_json),
+    )
+    |> BatchRequestItemNotification
+
+  BatchRequest([notification, ..batch])
 }
 
 /// A union of the types allowed in a single batch request.
-pub type BatchRequestItem {
-  BatchRequestItemRequest(Request(Dynamic))
-  BatchRequestItemNotification(Notification(Dynamic))
+pub type BatchRequestItem(a) {
+  BatchRequestItemRequest(Request(a))
+  BatchRequestItemNotification(Notification(a))
 }
 
-pub fn batch_request_item_decoder() {
+pub fn batch_request_item_decoder() -> Decoder(BatchRequestItem(Dynamic)) {
   let request =
     request_decoder(decode.dynamic) |> decode.map(BatchRequestItemRequest)
   let notification =
@@ -102,42 +121,80 @@ pub fn batch_request_item_decoder() {
   decode.one_of(request, [notification])
 }
 
-pub opaque type BatchResponse {
-  BatchResponse(List(Json))
+pub fn batch_request_item_to_json(item: BatchRequestItem(Json)) {
+  case item {
+    BatchRequestItemRequest(msg) -> request_to_json(msg, function.identity)
+    BatchRequestItemNotification(msg) ->
+      notification_to_json(msg, function.identity)
+  }
 }
 
-pub fn batch_response_to_json(batch_response: BatchResponse) {
+pub opaque type BatchResponse(a) {
+  BatchResponse(List(BatchResponseItem(a)))
+}
+
+pub fn batch_response_items(batch_response: BatchResponse(a)) {
   let BatchResponse(batch) = batch_response
-  json.array(batch, function.identity)
+  batch
+}
+
+pub fn batch_response() -> BatchResponse(Json) {
+  BatchResponse([])
+}
+
+pub fn batch_response_decoder() -> Decoder(BatchResponse(Dynamic)) {
+  decode.list(batch_response_item_decoder()) |> decode.map(BatchResponse)
+}
+
+pub fn batch_response_to_json(batch_response: BatchResponse(Json)) {
+  let BatchResponse(batch) = batch_response
+  json.array(batch, batch_response_item_to_json)
 }
 
 pub fn add_response(
-  batch_response: BatchResponse,
+  batch_response: BatchResponse(Json),
   response: Response(a),
   result_to_json: fn(a) -> Json,
-) -> BatchResponse {
+) -> BatchResponse(Json) {
   let BatchResponse(batch) = batch_response
-  let resp = response_to_json(response, result_to_json)
-  BatchResponse([resp, ..batch])
+  let response =
+    Response(..response, result: result_to_json(response.result))
+    |> BatchResponseItemResponse
+  BatchResponse([response, ..batch])
 }
 
 pub fn add_error_response(
-  batch_response: BatchResponse,
+  batch_response: BatchResponse(Json),
   error_response: ErrorResponse(a),
   data_to_json: fn(a) -> Json,
-) -> BatchResponse {
+) -> BatchResponse(Json) {
   let BatchResponse(batch) = batch_response
-  let req = error_response_to_json(error_response, data_to_json)
-  BatchResponse([req, ..batch])
+  let error =
+    ErrorBody(
+      ..error_response.error,
+      data: option.map(error_response.error.data, data_to_json),
+    )
+  let error_response =
+    ErrorResponse(..error_response, error:)
+    |> BatchResponseItemErrorResponse
+  BatchResponse([error_response, ..batch])
 }
 
 /// A union of the types allowed in a single batch response.
-pub type BatchResponseItem {
-  BatchResponseItemResponse(Response(Dynamic))
-  BatchResponseItemErrorResponse(ErrorResponse(Dynamic))
+pub type BatchResponseItem(a) {
+  BatchResponseItemResponse(Response(a))
+  BatchResponseItemErrorResponse(ErrorResponse(a))
 }
 
-pub fn batch_response_item_decoder() {
+pub fn batch_response_item_to_json(item: BatchResponseItem(Json)) {
+  case item {
+    BatchResponseItemErrorResponse(msg) ->
+      error_response_to_json(msg, function.identity)
+    BatchResponseItemResponse(msg) -> response_to_json(msg, function.identity)
+  }
+}
+
+pub fn batch_response_item_decoder() -> Decoder(BatchResponseItem(Dynamic)) {
   let response =
     response_decoder(decode.dynamic) |> decode.map(BatchResponseItemResponse)
   let error_response =

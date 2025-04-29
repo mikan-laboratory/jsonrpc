@@ -1,0 +1,7 @@
+---
+version: 1.2.6
+title: batch response to json
+file: ./test/jsonrpc_test.gleam
+test_name: batch_response_test
+---
+[{"jsonrpc":"2.0","id":2,"error":{"code":-32601,"message":"Method not found"}},{"jsonrpc":"2.0","id":1,"result":"result"}]

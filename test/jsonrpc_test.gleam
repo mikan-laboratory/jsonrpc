@@ -20,7 +20,7 @@ fn params_decoder() -> Decoder(Params) {
   decode.success(Params(subtrahend:, minuend:))
 }
 
-fn encode_params(params: Params) -> json.Json {
+fn params_to_json(params: Params) -> json.Json {
   let Params(subtrahend:, minuend:) = params
   json.object([
     #("subtrahend", json.int(subtrahend)),
@@ -38,7 +38,7 @@ fn data_decoder() -> Decoder(Data) {
   decode.success(Data(wibble:, wobble:))
 }
 
-fn encode_data(data: Data) -> json.Json {
+fn data_to_json(data: Data) -> json.Json {
   let Data(wibble:, wobble:) = data
   json.object([#("wibble", json.bool(wibble)), #("wobble", json.string(wobble))])
 }
@@ -76,7 +76,7 @@ pub fn request_with_named_parameters_test_to_json() {
   |> jsonrpc.request_params(Params(23, 42))
   |> test_case(
     title: "request with named parameters",
-    encode: jsonrpc.request_to_json(_, encode_params),
+    encode: jsonrpc.request_to_json(_, params_to_json),
     decoder: jsonrpc.request_decoder(params_decoder()),
   )
 }
@@ -128,7 +128,7 @@ pub fn encode_error_with_data_test() {
   |> jsonrpc.error_response_data(Data(True, "wubble"))
   |> test_case(
     title: "error with data",
-    encode: jsonrpc.error_response_to_json(_, encode_data),
+    encode: jsonrpc.error_response_to_json(_, data_to_json),
     decoder: jsonrpc.error_response_decoder(data_decoder()),
   )
 }
@@ -152,4 +152,76 @@ pub fn json_error_test() {
   |> should.be_error
   |> jsonrpc.json_error
   |> should.equal(jsonrpc.invalid_params)
+}
+
+pub fn batch_request_test() {
+  let req = jsonrpc.request(method: "test/request", id: jsonrpc.id(1))
+  let notif = jsonrpc.notification("test/notification")
+
+  let batch =
+    jsonrpc.batch_request()
+    |> jsonrpc.add_request(req, params_to_json)
+    |> jsonrpc.add_notification(notif, jsonrpc.nothing_to_json)
+
+  let json_string =
+    batch
+    |> jsonrpc.batch_request_to_json
+    |> json.to_string
+
+  birdie.snap(json_string, "batch request to json")
+
+  let items =
+    json.parse(json_string, jsonrpc.batch_request_decoder())
+    |> should.be_ok
+    |> jsonrpc.batch_request_items()
+
+  let assert [
+    jsonrpc.BatchRequestItemNotification(parsed_notif),
+    jsonrpc.BatchRequestItemRequest(parsed_req),
+  ] = items
+
+  parsed_notif.method |> should.equal(notif.method)
+  parsed_notif.params |> should.be_none
+
+  parsed_req.id |> should.equal(req.id)
+  parsed_req.method |> should.equal(req.method)
+  parsed_req.params |> should.be_none
+}
+
+pub fn batch_response_test() {
+  let resp = jsonrpc.response("result", jsonrpc.id(1))
+  let error = jsonrpc.error_response(jsonrpc.method_not_found, jsonrpc.id(2))
+
+  let batch =
+    jsonrpc.batch_response()
+    |> jsonrpc.add_response(resp, json.string)
+    |> jsonrpc.add_error_response(error, jsonrpc.nothing_to_json)
+
+  let json_string =
+    batch
+    |> jsonrpc.batch_response_to_json
+    |> json.to_string
+
+  birdie.snap(json_string, "batch response to json")
+
+  let items =
+    json.parse(json_string, jsonrpc.batch_response_decoder())
+    |> should.be_ok
+    |> jsonrpc.batch_response_items()
+
+  let assert [
+    jsonrpc.BatchResponseItemErrorResponse(parsed_error),
+    jsonrpc.BatchResponseItemResponse(parsed_resp),
+  ] = items
+
+  parsed_error.id |> should.equal(error.id)
+  parsed_error.error.code |> should.equal(error.error.code)
+  parsed_error.error.message |> should.equal(error.error.message)
+  parsed_error.error.data |> should.be_none
+
+  parsed_resp.id |> should.equal(resp.id)
+  parsed_resp.result
+  |> decode.run(decode.string)
+  |> should.be_ok
+  |> should.equal(resp.result)
 }
