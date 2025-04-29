@@ -55,15 +55,22 @@ pub fn message_decoder() -> Decoder(Message) {
   ])
 }
 
+/// A request that is made up of a list of JSON-RPC requests and/or notifications.
+/// Items in a batch request MUST be able to be processed in any other. As such,
+/// order is not preserved.
 pub opaque type BatchRequest(a) {
   BatchRequest(List(BatchRequestItem(a)))
 }
 
-pub fn batch_request_items(batch_request: BatchRequest(a)) {
+/// retrieve the list of BatchRequestItems
+pub fn batch_request_items(
+  batch_request: BatchRequest(a),
+) -> List(BatchRequestItem(a)) {
   let BatchRequest(batch) = batch_request
   batch
 }
 
+/// Create a new, empty batch request
 pub fn batch_request() -> BatchRequest(Json) {
   BatchRequest([])
 }
@@ -77,6 +84,8 @@ pub fn batch_request_decoder() -> Decoder(BatchRequest(Dynamic)) {
   decode.list(batch_request_item_decoder()) |> decode.map(BatchRequest)
 }
 
+/// Add a request to a batch request. Batch requests have no guarantees about
+/// order. Therefore order is not preserved when your batch request is sent.
 pub fn add_request(
   batch_request: BatchRequest(Json),
   request: Request(a),
@@ -89,6 +98,8 @@ pub fn add_request(
   BatchRequest([request, ..batch])
 }
 
+/// Add a notification to a batch request. Batch requests have no guarantees about
+/// order. Therefore order is not preserved when your batch request is sent.
 pub fn add_notification(
   batch_request: BatchRequest(Json),
   notification: Notification(a),
@@ -129,15 +140,22 @@ pub fn batch_request_item_to_json(item: BatchRequestItem(Json)) {
   }
 }
 
+/// A response that is made up of a list of JSON-RPC responses and/or error responses.
+/// A batch response should contain a response or error response for each
+/// request in the request batch (except for notifications).
+/// Items in a batch response are not ordered. The client is responsible to map
+/// the response IDs to their own request IDs.
 pub opaque type BatchResponse(a) {
   BatchResponse(List(BatchResponseItem(a)))
 }
 
+/// retrieve the list of BatchResponseItems
 pub fn batch_response_items(batch_response: BatchResponse(a)) {
   let BatchResponse(batch) = batch_response
   batch
 }
 
+/// Create a new, empty batch response
 pub fn batch_response() -> BatchResponse(Json) {
   BatchResponse([])
 }
@@ -151,6 +169,8 @@ pub fn batch_response_to_json(batch_response: BatchResponse(Json)) {
   json.array(batch, batch_response_item_to_json)
 }
 
+/// Add a response to a batch response. Batch responses have no guarantees about
+/// order. Therefore order is not preserved when your batch response is sent.
 pub fn add_response(
   batch_response: BatchResponse(Json),
   response: Response(a),
@@ -163,6 +183,8 @@ pub fn add_response(
   BatchResponse([response, ..batch])
 }
 
+/// Add an error response to a batch response. Batch responses have no guarantees about
+/// order. Therefore order is not preserved when your batch response is sent.
 pub fn add_error_response(
   batch_response: BatchResponse(Json),
   error_response: ErrorResponse(a),
@@ -229,6 +251,7 @@ pub type Id {
   NullId
 }
 
+/// Creates an Int ID
 pub fn id(id: Int) -> Id {
   IntId(id)
 }
@@ -269,10 +292,12 @@ pub type Request(params) {
   )
 }
 
+/// Creates a new request with empty params
 pub fn request(method method: String, id id: Id) -> Request(params) {
   Request(jsonrpc: V2, method:, id:, params: None)
 }
 
+/// Sets the params of this request
 pub fn request_params(request: Request(a), params: params) -> Request(params) {
   Request(..request, params: Some(params))
 }
@@ -314,10 +339,16 @@ pub opaque type Nothing {
   Nothing
 }
 
+/// Encode json for the Nothing type, which is impossible to create. This
+/// is intended for fields you KNOW are omitted, and therefore it will never be
+/// ran. It will always return `null` if ran.
 pub fn nothing_to_json(_nothing: Nothing) -> Json {
   json.null()
 }
 
+/// A decoder for the Nothing type, which is impossible to create. This decoder
+/// is intended for fields you KNOW are omitted, and therefore it will never be
+/// ran. It will always fail if ran
 pub fn nothing_decoder() -> Decoder(Nothing) {
   decode.failure(Nothing, "Attempted to decode a Nothing type.")
 }
@@ -345,10 +376,12 @@ pub type Notification(params) {
   )
 }
 
+/// Creates a new notification with empty params
 pub fn notification(method: String) -> Notification(params) {
   Notification(jsonrpc: V2, method:, params: None)
 }
 
+/// Sets the params for this notification
 pub fn notification_params(
   notification: Notification(a),
   params: params,
@@ -400,6 +433,7 @@ pub type Response(result) {
   )
 }
 
+/// Creates a new response
 pub fn response(result result: result, id id: Id) -> Response(result) {
   Response(jsonrpc: V2, id:, result:)
 }
@@ -442,6 +476,8 @@ pub type ErrorResponse(data) {
   )
 }
 
+/// Creates a new error response with empty data. Error code and message are
+/// populated with the values from `error`.
 pub fn error_response(
   error error: JsonRpcError,
   id id: Id,
@@ -453,6 +489,7 @@ pub fn error_response(
   )
 }
 
+/// Sets the data of this error response
 pub fn error_response_data(
   error_response: ErrorResponse(a),
   data: data,
@@ -561,14 +598,17 @@ pub const invalid_params = JsonRpcError(-32_602, "Invalid params")
 /// Internal JSON-RPC error.
 pub const internal_error = JsonRpcError(-32_603, "Internal error")
 
+/// Represents the error code and associated message. Error types provided by the JSON-RPC spec are already defined in the module.
 pub opaque type JsonRpcError {
   JsonRpcError(code: Int, message: String)
 }
 
+/// Retrieve this error's code
 pub fn error_code(error: JsonRpcError) {
   error.code
 }
 
+/// Retrieve this error's message
 pub fn error_message(error: JsonRpcError) {
   error.message
 }
