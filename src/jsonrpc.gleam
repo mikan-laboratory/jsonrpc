@@ -48,7 +48,7 @@ pub type Version {
   V2
 }
 
-pub fn encode_version(_version: Version) -> Json {
+pub fn version_to_json(_version: Version) -> Json {
   json.string("2.0")
 }
 
@@ -72,7 +72,7 @@ pub fn id(id: Int) -> Id {
   IntId(id)
 }
 
-pub fn encode_id(id: Id) -> Json {
+pub fn id_to_json(id: Id) -> Json {
   case id {
     IntId(id) -> json.int(id)
     NullId -> json.null()
@@ -116,7 +116,7 @@ pub fn request_params(request: Request(a), params: params) -> Request(params) {
   Request(..request, params: Some(params))
 }
 
-pub fn encode_request(
+pub fn request_to_json(
   request: Request(params),
   encode_params: fn(params) -> Json,
 ) -> Json {
@@ -126,9 +126,9 @@ pub fn encode_request(
     None -> []
   }
   json.object([
-    #("jsonrpc", encode_version(jsonrpc)),
+    #("jsonrpc", version_to_json(jsonrpc)),
     #("method", json.string(method)),
-    #("id", encode_id(id)),
+    #("id", id_to_json(id)),
     ..params
   ])
 }
@@ -153,7 +153,7 @@ pub opaque type Nothing {
   Nothing
 }
 
-pub fn encode_nothing(_nothing: Nothing) -> Json {
+pub fn nothing_to_json(_nothing: Nothing) -> Json {
   json.null()
 }
 
@@ -195,7 +195,7 @@ pub fn notification_params(
   Notification(..notification, params: Some(params))
 }
 
-pub fn encode_notification(
+pub fn notification_to_json(
   notification: Notification(params),
   encode_params: fn(params) -> Json,
 ) -> Json {
@@ -206,7 +206,7 @@ pub fn encode_notification(
   }
 
   json.object([
-    #("jsonrpc", encode_version(jsonrpc)),
+    #("jsonrpc", version_to_json(jsonrpc)),
     #("method", json.string(method)),
     ..params
   ])
@@ -243,14 +243,14 @@ pub fn response(result result: result, id id: Id) -> Response(result) {
   Response(jsonrpc: V2, id:, result:)
 }
 
-pub fn encode_response(
+pub fn response_to_json(
   response: Response(result),
   encode_result: fn(result) -> Json,
 ) -> Json {
   let Response(jsonrpc:, id:, result:) = response
   json.object([
-    #("jsonrpc", encode_version(jsonrpc)),
-    #("id", encode_id(id)),
+    #("jsonrpc", version_to_json(jsonrpc)),
+    #("id", id_to_json(id)),
     #("result", encode_result(result)),
   ])
 }
@@ -300,15 +300,15 @@ pub fn error_response_data(
   ErrorResponse(..error_response, error:)
 }
 
-pub fn encode_error_response(
+pub fn error_response_to_json(
   error_response: ErrorResponse(data),
   encode_data: fn(data) -> Json,
 ) -> Json {
   let ErrorResponse(jsonrpc:, id:, error:) = error_response
   json.object([
-    #("jsonrpc", encode_version(jsonrpc)),
-    #("id", encode_id(id)),
-    #("error", encode_error(error, encode_data)),
+    #("jsonrpc", version_to_json(jsonrpc)),
+    #("id", id_to_json(id)),
+    #("error", error_to_json(error, encode_data)),
   ])
 }
 
@@ -339,7 +339,7 @@ pub type ErrorBody(data) {
   )
 }
 
-pub fn encode_error(
+pub fn error_to_json(
   error: ErrorBody(data),
   encode_data: fn(data) -> Json,
 ) -> Json {
