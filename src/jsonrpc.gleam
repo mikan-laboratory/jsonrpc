@@ -20,6 +20,7 @@
 //// The remainder of the space is available for application defined errors.
 
 import gleam/dynamic/decode.{type Decoder, type Dynamic}
+import gleam/function
 import gleam/json.{type Json}
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -30,6 +31,8 @@ pub type Message {
   NotificationMessage(Notification(Dynamic))
   ResponseMessage(Response(Dynamic))
   ErrorResponseMessage(ErrorResponse(Dynamic))
+  BatchRequestMessage(List(BatchRequestItem))
+  BatchResponseMessage(List(BatchResponseItem))
 }
 
 pub fn message_decoder() -> Decoder(Message) {
@@ -39,8 +42,109 @@ pub fn message_decoder() -> Decoder(Message) {
   let response = response_decoder(decode.dynamic) |> decode.map(ResponseMessage)
   let error_response =
     error_response_decoder(decode.dynamic) |> decode.map(ErrorResponseMessage)
+  let batch_request =
+    decode.list(batch_request_item_decoder()) |> decode.map(BatchRequestMessage)
+  let batch_response =
+    decode.list(batch_response_item_decoder())
+    |> decode.map(BatchResponseMessage)
 
-  decode.one_of(request, [notification, response, error_response])
+  decode.one_of(request, [
+    notification,
+    response,
+    error_response,
+    batch_request,
+    batch_response,
+  ])
+}
+
+pub opaque type BatchRequest {
+  BatchRequest(List(Json))
+}
+
+pub fn batch_request_to_json(batch_request: BatchRequest) -> Json {
+  let BatchRequest(batch) = batch_request
+  json.array(batch, function.identity)
+}
+
+pub fn add_request(
+  batch_request: BatchRequest,
+  request: Request(a),
+  params_to_json: fn(a) -> Json,
+) -> BatchRequest {
+  let BatchRequest(batch) = batch_request
+  let req = request_to_json(request, params_to_json)
+  BatchRequest([req, ..batch])
+}
+
+pub fn add_notification(
+  batch_request: BatchRequest,
+  notification: Notification(a),
+  params_to_json: fn(a) -> Json,
+) -> BatchRequest {
+  let BatchRequest(batch) = batch_request
+  let req = notification_to_json(notification, params_to_json)
+  BatchRequest([req, ..batch])
+}
+
+/// A union of the types allowed in a single batch request.
+pub type BatchRequestItem {
+  BatchRequestItemRequest(Request(Dynamic))
+  BatchRequestItemNotification(Notification(Dynamic))
+}
+
+pub fn batch_request_item_decoder() {
+  let request =
+    request_decoder(decode.dynamic) |> decode.map(BatchRequestItemRequest)
+  let notification =
+    notification_decoder(decode.dynamic)
+    |> decode.map(BatchRequestItemNotification)
+
+  decode.one_of(request, [notification])
+}
+
+pub opaque type BatchResponse {
+  BatchResponse(List(Json))
+}
+
+pub fn batch_response_to_json(batch_response: BatchResponse) {
+  let BatchResponse(batch) = batch_response
+  json.array(batch, function.identity)
+}
+
+pub fn add_response(
+  batch_response: BatchResponse,
+  response: Response(a),
+  result_to_json: fn(a) -> Json,
+) -> BatchResponse {
+  let BatchResponse(batch) = batch_response
+  let resp = response_to_json(response, result_to_json)
+  BatchResponse([resp, ..batch])
+}
+
+pub fn add_error_response(
+  batch_response: BatchResponse,
+  error_response: ErrorResponse(a),
+  data_to_json: fn(a) -> Json,
+) -> BatchResponse {
+  let BatchResponse(batch) = batch_response
+  let req = error_response_to_json(error_response, data_to_json)
+  BatchResponse([req, ..batch])
+}
+
+/// A union of the types allowed in a single batch response.
+pub type BatchResponseItem {
+  BatchResponseItemResponse(Response(Dynamic))
+  BatchResponseItemErrorResponse(ErrorResponse(Dynamic))
+}
+
+pub fn batch_response_item_decoder() {
+  let response =
+    response_decoder(decode.dynamic) |> decode.map(BatchResponseItemResponse)
+  let error_response =
+    error_response_decoder(decode.dynamic)
+    |> decode.map(BatchResponseItemErrorResponse)
+
+  decode.one_of(response, [error_response])
 }
 
 /// Specifies the version of the JSON-RPC protocol. Only 2.0 is supported.
