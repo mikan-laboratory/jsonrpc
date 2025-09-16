@@ -1,9 +1,9 @@
-name = "jsonrpc"
+name = "jsonrpcx"
 version = "1.0.0"
 
 description = "Encoders and decoders for JSON-RPC 2.0"
 licences = ["Apache-2.0"]
-repository = { type = "github", user = "ryanmiville", repo = "jsonrpc" }
+repository = { type = "github", user = "mikan-laboratory", repo = "jsonrpcx" }
 links = [{ title = "JSON-RPC", href = "https://www.jsonrpc.org/" }]
 
 [dependencies]

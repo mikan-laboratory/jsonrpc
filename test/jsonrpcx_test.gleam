@@ -4,7 +4,7 @@ import gleam/json.{type Json}
 import gleam/string
 import gleeunit
 import gleeunit/should
-import jsonrpc
+import jsonrpcx
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -62,122 +62,122 @@ fn test_case(
 }
 
 pub fn request_with_positional_parameters_test_to_json() {
-  jsonrpc.request(method: "subtract", id: jsonrpc.id(1))
-  |> jsonrpc.request_params([42, 23])
+  jsonrpcx.request(method: "subtract", id: jsonrpcx.id(1))
+  |> jsonrpcx.request_params([42, 23])
   |> test_case(
     title: "request with positional parameters",
-    encode: jsonrpc.request_to_json(_, json.array(_, json.int)),
-    decoder: jsonrpc.request_decoder(decode.list(decode.int)),
+    encode: jsonrpcx.request_to_json(_, json.array(_, json.int)),
+    decoder: jsonrpcx.request_decoder(decode.list(decode.int)),
   )
 }
 
 pub fn request_with_named_parameters_test_to_json() {
-  jsonrpc.request(method: "subtract", id: jsonrpc.id(3))
-  |> jsonrpc.request_params(Params(23, 42))
+  jsonrpcx.request(method: "subtract", id: jsonrpcx.id(3))
+  |> jsonrpcx.request_params(Params(23, 42))
   |> test_case(
     title: "request with named parameters",
-    encode: jsonrpc.request_to_json(_, params_to_json),
-    decoder: jsonrpc.request_decoder(params_decoder()),
+    encode: jsonrpcx.request_to_json(_, params_to_json),
+    decoder: jsonrpcx.request_decoder(params_decoder()),
   )
 }
 
 pub fn response_to_json_test() {
-  jsonrpc.response(id: jsonrpc.id(1), result: 19)
+  jsonrpcx.response(id: jsonrpcx.id(1), result: 19)
   |> test_case(
     title: "response",
-    encode: jsonrpc.response_to_json(_, json.int),
-    decoder: jsonrpc.response_decoder(decode.int),
+    encode: jsonrpcx.response_to_json(_, json.int),
+    decoder: jsonrpcx.response_decoder(decode.int),
   )
 }
 
 pub fn notification_to_json_with_params_test() {
-  jsonrpc.notification("update")
-  |> jsonrpc.notification_params([1, 2, 3, 4, 5])
+  jsonrpcx.notification("update")
+  |> jsonrpcx.notification_params([1, 2, 3, 4, 5])
   |> test_case(
     title: "notification with params",
-    encode: jsonrpc.notification_to_json(_, json.array(_, json.int)),
-    decoder: jsonrpc.notification_decoder(decode.list(decode.int)),
+    encode: jsonrpcx.notification_to_json(_, json.array(_, json.int)),
+    decoder: jsonrpcx.notification_decoder(decode.list(decode.int)),
   )
 }
 
 pub fn notification_to_json_without_params_test() {
-  jsonrpc.notification("wibble")
+  jsonrpcx.notification("wibble")
   |> test_case(
     title: "notification without params",
-    encode: jsonrpc.notification_to_json(_, jsonrpc.nothing_to_json),
-    decoder: jsonrpc.notification_decoder(jsonrpc.nothing_decoder()),
+    encode: jsonrpcx.notification_to_json(_, jsonrpcx.nothing_to_json),
+    decoder: jsonrpcx.notification_decoder(jsonrpcx.nothing_decoder()),
   )
 }
 
 pub fn encode_error_with_no_data_test() {
-  jsonrpc.error_response(
-    id: jsonrpc.StringId("1"),
-    error: jsonrpc.method_not_found,
+  jsonrpcx.error_response(
+    id: jsonrpcx.StringId("1"),
+    error: jsonrpcx.method_not_found,
   )
   |> test_case(
     title: "error with no data",
-    encode: jsonrpc.error_response_to_json(_, jsonrpc.nothing_to_json),
-    decoder: jsonrpc.error_response_decoder(jsonrpc.nothing_decoder()),
+    encode: jsonrpcx.error_response_to_json(_, jsonrpcx.nothing_to_json),
+    decoder: jsonrpcx.error_response_decoder(jsonrpcx.nothing_decoder()),
   )
 }
 
 pub fn encode_error_with_data_test() {
-  let app_error = jsonrpc.application_error(-30_000, "Oops") |> should.be_ok
+  let app_error = jsonrpcx.application_error(-30_000, "Oops") |> should.be_ok
 
-  jsonrpc.error_response(id: jsonrpc.NullId, error: app_error)
-  |> jsonrpc.error_response_data(Data(True, "wubble"))
+  jsonrpcx.error_response(id: jsonrpcx.NullId, error: app_error)
+  |> jsonrpcx.error_response_data(Data(True, "wubble"))
   |> test_case(
     title: "error with data",
-    encode: jsonrpc.error_response_to_json(_, data_to_json),
-    decoder: jsonrpc.error_response_decoder(data_decoder()),
+    encode: jsonrpcx.error_response_to_json(_, data_to_json),
+    decoder: jsonrpcx.error_response_decoder(data_decoder()),
   )
 }
 
 pub fn json_error_test() {
   "{"
-  |> json.parse(jsonrpc.request_decoder(jsonrpc.nothing_decoder()))
+  |> json.parse(jsonrpcx.request_decoder(jsonrpcx.nothing_decoder()))
   |> should.be_error
-  |> jsonrpc.json_error
-  |> should.equal(jsonrpc.parse_error)
+  |> jsonrpcx.json_error
+  |> should.equal(jsonrpcx.parse_error)
 
   "{}"
-  |> json.parse(jsonrpc.request_decoder(jsonrpc.nothing_decoder()))
+  |> json.parse(jsonrpcx.request_decoder(jsonrpcx.nothing_decoder()))
   |> should.be_error
-  |> jsonrpc.json_error
-  |> should.equal(jsonrpc.invalid_request)
+  |> jsonrpcx.json_error
+  |> should.equal(jsonrpcx.invalid_request)
 
   "{'jsonrpc':'2.0','id':1,'method':'subtract','params':['a', 'b']}"
   |> string.replace("'", "\"")
-  |> json.parse(jsonrpc.request_decoder(decode.list(decode.int)))
+  |> json.parse(jsonrpcx.request_decoder(decode.list(decode.int)))
   |> should.be_error
-  |> jsonrpc.json_error
-  |> should.equal(jsonrpc.invalid_params)
+  |> jsonrpcx.json_error
+  |> should.equal(jsonrpcx.invalid_params)
 }
 
 pub fn batch_request_test() {
-  let req = jsonrpc.request(method: "test/request", id: jsonrpc.id(1))
-  let notif = jsonrpc.notification("test/notification")
+  let req = jsonrpcx.request(method: "test/request", id: jsonrpcx.id(1))
+  let notif = jsonrpcx.notification("test/notification")
 
   let batch =
-    jsonrpc.batch_request()
-    |> jsonrpc.add_request(req, params_to_json)
-    |> jsonrpc.add_notification(notif, jsonrpc.nothing_to_json)
+    jsonrpcx.batch_request()
+    |> jsonrpcx.add_request(req, params_to_json)
+    |> jsonrpcx.add_notification(notif, jsonrpcx.nothing_to_json)
 
   let json_string =
     batch
-    |> jsonrpc.batch_request_to_json
+    |> jsonrpcx.batch_request_to_json
     |> json.to_string
 
   birdie.snap(json_string, "batch request to json")
 
   let items =
-    json.parse(json_string, jsonrpc.batch_request_decoder())
+    json.parse(json_string, jsonrpcx.batch_request_decoder())
     |> should.be_ok
-    |> jsonrpc.batch_request_items()
+    |> jsonrpcx.batch_request_items()
 
   let assert [
-    jsonrpc.BatchRequestItemNotification(parsed_notif),
-    jsonrpc.BatchRequestItemRequest(parsed_req),
+    jsonrpcx.BatchRequestItemNotification(parsed_notif),
+    jsonrpcx.BatchRequestItemRequest(parsed_req),
   ] = items
 
   parsed_notif.method |> should.equal(notif.method)
@@ -189,29 +189,29 @@ pub fn batch_request_test() {
 }
 
 pub fn batch_response_test() {
-  let resp = jsonrpc.response("result", jsonrpc.id(1))
-  let error = jsonrpc.error_response(jsonrpc.method_not_found, jsonrpc.id(2))
+  let resp = jsonrpcx.response("result", jsonrpcx.id(1))
+  let error = jsonrpcx.error_response(jsonrpcx.method_not_found, jsonrpcx.id(2))
 
   let batch =
-    jsonrpc.batch_response()
-    |> jsonrpc.add_response(resp, json.string)
-    |> jsonrpc.add_error_response(error, jsonrpc.nothing_to_json)
+    jsonrpcx.batch_response()
+    |> jsonrpcx.add_response(resp, json.string)
+    |> jsonrpcx.add_error_response(error, jsonrpcx.nothing_to_json)
 
   let json_string =
     batch
-    |> jsonrpc.batch_response_to_json
+    |> jsonrpcx.batch_response_to_json
     |> json.to_string
 
   birdie.snap(json_string, "batch response to json")
 
   let items =
-    json.parse(json_string, jsonrpc.batch_response_decoder())
+    json.parse(json_string, jsonrpcx.batch_response_decoder())
     |> should.be_ok
-    |> jsonrpc.batch_response_items()
+    |> jsonrpcx.batch_response_items()
 
   let assert [
-    jsonrpc.BatchResponseItemErrorResponse(parsed_error),
-    jsonrpc.BatchResponseItemResponse(parsed_resp),
+    jsonrpcx.BatchResponseItemErrorResponse(parsed_error),
+    jsonrpcx.BatchResponseItemResponse(parsed_resp),
   ] = items
 
   parsed_error.id |> should.equal(error.id)

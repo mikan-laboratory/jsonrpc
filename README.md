@@ -1,12 +1,12 @@
-# jsonrpc
+# jsonrpcx
 
 Encoders and decoders for [JSON-RPC 2.0](https://www.jsonrpc.org/specification).
 
-[![Package Version](https://img.shields.io/hexpm/v/jsonrpc)](https://hex.pm/packages/jsonrpc)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/jsonrpc/)
+[![Package Version](https://img.shields.io/hexpm/v/jsonrpcx)](https://hex.pm/packages/jsonrpcx)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/jsonrpcx/)
 
 ```sh
-gleam add jsonrpc@1
+gleam add jsonrpcx
 ```
 ```gleam
 import gleam/dynamic/decode
@@ -41,4 +41,4 @@ pub fn send_subtract(base_request: HttpRequest(body), a: Int, b: Int) {
 }
 ```
 
-Further documentation can be found at <https://hexdocs.pm/jsonrpc>.
+Further documentation can be found at <https://hexdocs.pm/jsonrpcx>.
