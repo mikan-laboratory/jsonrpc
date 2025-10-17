@@ -5,6 +5,8 @@ Encoders and decoders for [JSON-RPC 2.0](https://www.jsonrpc.org/specification).
 [![Package Version](https://img.shields.io/hexpm/v/jsonrpcx)](https://hex.pm/packages/jsonrpcx)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/jsonrpcx/)
 
+This package is based on the [jsonrpc](https://hexdocs.pm/jsonrpc/index.html) library, updated to work with the latest Gleam release.
+
 ```sh
 gleam add jsonrpcx
 ```
